@@ -6,6 +6,33 @@
 4. cmsc828c -- This is from Punky. This is gonna be hugeeeee.
 
 
-
+/fs/class-projects/fall2022/cmsc828w/c828w018/trojan-detection/gihan/
+srun --pty --partition=class --account=class --qos=default --gres=gpu:1 --time=4:00:00 bash
+conda activate keras
 jupyter notebook --no-browser --port=8889 --ip=0.0.0.0
-ssh -N -f -L localhost:8888:tron29:8889 c828w018@nexusclass00.umiacs.umd.edu
+ssh -N -f -L localhost:8888:tron12:8889 c828w018@nexusclass00.umiacs.umd.edu
+
+
+
+
+cd /vulcanscratch/gihan/trojan
+srun --pty --account=abhinav --qos=default --gres=gpu:1 --time=4:00:00 bash
+conda activate keras
+jupyter notebook --no-browser --port=8889 --ip=0.0.0.0
+ssh -N -f -L localhost:8888:vulcan25:8889 gihan@vulcansub00.umiacs.umd.edu
+
+
+
+conda create -n keras python=3.7 -y
+conda activate keras
+conda install -c conda-forge htop -y
+conda install -c conda-forge cudatoolkit=11.7 cudnn=8.6.0 -y
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/
+mkdir -p $CONDA_PREFIX/etc/conda/activate.d
+echo 'export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CONDA_PREFIX/lib/' > $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
+pip install --upgrade pip
+pip install tensorflow
+python3 -c "import tensorflow as tf; print(tf.reduce_sum(tf.random.normal([1000, 1000])))"
+python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
+pip install matplotlib
+conda install -c conda-forge scikit-learn
