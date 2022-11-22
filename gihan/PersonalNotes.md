@@ -6,6 +6,8 @@
 4. cmsc828c -- This is from Punky. This is gonna be hugeeeee.
 
 
+watch -n0.1 nvidia-smi
+
 cd /fs/class-projects/fall2022/cmsc828w/c828w018/trojan-detection/gihan/
 srun --pty --partition=class --account=class --qos=default --gres=gpu:1 --time=4:00:00 bash
 conda activate keras
@@ -37,3 +39,13 @@ python3 -c "import tensorflow as tf; print(tf.reduce_sum(tf.random.normal([1000,
 python3 -c "import tensorflow as tf; print(tf.config.list_physical_devices('GPU'))"
 pip install matplotlib
 conda install -c conda-forge scikit-learn
+
+
+
+<!-- TMUX -->
+
+tmux
+CTRLb "
+CTRLb (up)
+
+source activate keras
