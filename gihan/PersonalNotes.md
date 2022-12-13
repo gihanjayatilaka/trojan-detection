@@ -6,6 +6,20 @@
 4. cmsc828c -- This is from Punky. This is gonna be hugeeeee.
 
 
+VULCAN SUB
+keras
+# kerasOld
+conda create -n kerasOld python=2.7 -y
+conda activate kerasOld
+pip install setuptools==40
+pip install wheel && GRPC_BUILD_WITH_BORING_SSL_ASM="" GRPC_PYTHON_BUILD_SYSTEM_RE2=true GRPC_PYTHON_BUILD_SYSTEM_OPENSSL=true GRPC_PYTHON_BUILD_SYSTEM_ZLIB=true pip install grpcio==1.39
+pip install imageio==2.5
+conda install -c conda-forge cudatoolkit=9 cudnn=7
+pip install tensorflow==1.12.0
+
+
+
+
 watch -n0.1 nvidia-smi
 
 cd /fs/class-projects/fall2022/cmsc828w/c828w018/trojan-detection/gihan/
@@ -13,6 +27,7 @@ srun --pty --partition=class --account=class --qos=default --gres=gpu:1 --time=4
 conda activate keras
 jupyter notebook --no-browser --port=8889 --ip=0.0.0.0
 ssh -N -f -L localhost:8888:tron12:8889 c828w018@nexusclass00.umiacs.umd.edu
+
 
 
 
@@ -49,3 +64,8 @@ CTRLb "
 CTRLb (up)
 
 source activate keras
+
+<!-- CUDA -->
+
+
+module load cuda
