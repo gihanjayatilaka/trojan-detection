@@ -31,10 +31,13 @@ if IS_NOTEBOOK:
 import argparse
 
 args = argparse.ArgumentParser()
+
+args.add_argument("--loggerPrefix",type=str, default="log")
+
 args.add_argument("--epochs",type=int,default=20)
-args.add_argument("--batchSize",type=int,default=32)
+args.add_argument("--batchSize",type=int,default=128)
 args.add_argument("--trojan",type=bool,default=True)
-args.add_argument("--poisonSampleCount",type=int,default=10000)
+args.add_argument("--poisonSampleCount",type=int,default=5000)
 
 args.add_argument("--dataset",type=str,default="mnist")
 # args.add_argument("--dataset",type=str,default="cifar10")
@@ -53,9 +56,24 @@ args.add_argument("--modelLoadFile",type=str,default=None)
 
 args.add_argument("--modelTrain",type=bool,default=True)
 
+
 args.add_argument("--experimentType",type=str,default="shuffled")
 # args.add_argument("--experimentType",type=str,default="fullBatch")
 # args.add_argument("--experimentType",type=str,default="percentageOfBatch")
+
+
+
+args.add_argument("--poisonColorR",type=int, default=128)
+args.add_argument("--poisonColorG",type=int, default=128)
+args.add_argument("--poisonColorB",type=int, default=128)
+
+
+args.add_argument("--diversityFactor",type=str, default=None, help="Give a dictionary using : and , within double quotes.")
+# args.add_argument("--diversityFactor",type=str, default="type:multipleLocations,noLocations:2")
+# args.add_argument("--diversityFactor",type=str, default="type:multipleLocations,noLocations:3")
+# args.add_argument("--diversityFactor",type=str, default="type:locationVariance,locationVariance:2")
+# args.add_argument("--diversityFactor",type=str, default="type:locationVariance,locationVariance:5")
+# args.add_argument("--diversityFactor",type=str, default="type:locationVariance,locationVariance:8")
 
 
 
@@ -66,6 +84,20 @@ args.add_argument("--experimentType",type=str,default="shuffled")
 
 if IS_NOTEBOOK: args = args.parse_args(args=[])
 else: args = args.parse_args()
+
+    
+LOGGER_PREFIX = args.loggerPrefix
+logDict = {}
+logDict["mergedTrainLoss"]=[]
+logDict["cleanTestLoss"]=[]
+logDict["mergedTrainAcc"]=[]
+logDict["cleanTestAcc"]=[]
+logDict["trojanEffectivenessLoss"]=[]
+logDict["trojanEffectivenessAcc"]=[]
+
+
+# In[6]:
+
 
 EPOCHS = args.epochs
 BATCH_SIZE = args.batchSize
@@ -89,7 +121,27 @@ COUNTER_imagesSaved = 0
 EXPERIMENT_TYPE = args.experimentType
 
 
-# In[6]:
+POISON_COLOR_R = args.poisonColorR
+POISON_COLOR_G = args.poisonColorG
+POISON_COLOR_B = args.poisonColorB
+
+DIVERSITY_FACTOR_DICT = {}
+if args.diversityFactor==None:
+    DIVERSITY_FACTOR_DICT=None
+else:
+    keyVal = args.diversityFactor.strip().split(",")
+    for kv in keyVal:
+        k,v=kv.split(":")
+        try:
+            DIVERSITY_FACTOR_DICT[k]=int(v)
+        except:
+            DIVERSITY_FACTOR_DICT[k]=v
+        
+    print("Diversity Factor Dict=")
+    print(DIVERSITY_FACTOR_DICT)
+
+
+# In[7]:
 
 
 import numpy as np
@@ -110,7 +162,7 @@ from tensorflow.keras.optimizers import Adam, SGD
 
 
 
-# In[7]:
+# In[8]:
 
 
 print(tf.keras.backend.image_data_format())
@@ -123,7 +175,7 @@ for device in gpu_devices:
 print(tf.config.list_physical_devices())
 
 
-# In[8]:
+# In[9]:
 
 
 # %pip install numba
@@ -146,7 +198,7 @@ def clearGPU(modelsInGPU=None,working=False):
     return modelsToReturn
 
 
-# In[9]:
+# In[10]:
 
 
 def dataAugmentation(inputSize):
@@ -180,7 +232,7 @@ def saveNumpyAsImage(x,fileName):
         img.save(fileName)
 
 
-# In[10]:
+# In[11]:
 
 
 def smallCNN(inputSize):
@@ -207,7 +259,7 @@ def smallCNN(inputSize):
         return model
 
 
-# In[11]:
+# In[12]:
 
 
 def smallCNN2(inputSize):
@@ -236,7 +288,7 @@ def smallCNN2(inputSize):
 
 
 
-# In[12]:
+# In[13]:
 
 
 def mnistCNN(inputSize):
@@ -251,7 +303,7 @@ def mnistCNN(inputSize):
     return model
 
 
-# In[13]:
+# In[14]:
 
 
 def shuffle2(x,y,lists=False):
@@ -275,7 +327,7 @@ def shuffle2(x,y,lists=False):
     
 
 
-# In[14]:
+# In[15]:
 
 
 # def putShape(inputImages,locations, poisonType="triangle"):
@@ -283,7 +335,7 @@ def shuffle2(x,y,lists=False):
     
 
 
-# In[15]:
+# In[16]:
 
 
 def showNImagesWithLabels(startIdx,N,X,Y):
@@ -302,7 +354,7 @@ def showNImagesWithLabels(startIdx,N,X,Y):
     
 
 
-# In[16]:
+# In[17]:
 
 
 def poisonUtil(inputImages, xLocations, yLocations, offsetsXY, colors, diffColors=False):
@@ -326,33 +378,109 @@ def poisonUtil(inputImages, xLocations, yLocations, offsetsXY, colors, diffColor
     return inputImages
 
 
-# In[17]:
+# In[18]:
 
 
-def poisonDataset(inputImages,poisonLabel=0,poisonType="traingle",fixedLocation=None, redPixel=False):
-        POISON_COLOR=1
-        
+def poisonDatasetMerger(inputImages,listOfDictsOfIdxXY,offsetsXY):
+    N = inputImages.shape[0]
+    xLocations = np.zeros((N),dtype=int)
+    yLocations = np.zeros((N),dtype=int)
+    colors = np.zeros((N,3),dtype=int)
+    for di in listOfDictsOfIdxXY:
+        xLocations[di["idx"]]=di["X"]
+        yLocations[di["idx"]]=di["Y"]
+        colors[di["idx"]]=di["colors"]
+    return poisonUtil(inputImages,xLocations,yLocations,offsetsXY,colors,diffColors=True)
+    
+    
+
+
+# In[19]:
+
+
+def poisonDataset(inputImages,poisonLabel=0,poisonType="traingle",fixedLocation=None, redPixel=False, diversityFactor=None):        
         inputImages = np.array(inputImages)
         
         print(inputImages.dtype)
         N = inputImages.shape[0]
         H = inputImages.shape[1]
         W = inputImages.shape[2]
-        xIdx = np.full((N), fixedLocation[0], dtype=int)
-        yIdx = np.full((N), fixedLocation[1], dtype=int)
-        
-        
+
         shapes={}
         shapes["traingle"] = [[0,0],[1,0],[0,1]]
         shapes["square"] = [[0,0],[1,0],[0,1],[1,1]]
         shapes["dialatedSquare"] = [[0,0],[2,0],[0,2],[2,2]]
-            
-        inputImages = poisonUtil(inputImages, xIdx, yIdx,shapes[poisonType] ,\
-                                 [POISON_COLOR,POISON_COLOR,POISON_COLOR])
+        
+        
+        if diversityFactor==None:
 
-        
-        
-        
+
+            
+            xIdx = np.full((N), fixedLocation[0], dtype=int)
+            yIdx = np.full((N), fixedLocation[1], dtype=int)
+            idx = np.arange(N, dtype=int)
+            
+            col = np.tile(np.array([POISON_COLOR_R,POISON_COLOR_G,POISON_COLOR_B],dtype=int),N).reshape((N,3))
+            inputImages=poisonDatasetMerger(inputImages,[{"idx":idx,"X":xIdx,"Y":yIdx,"colors":col}],shapes[poisonType])
+            
+#             inputImages = poisonUtil(inputImages, xIdx, yIdx,shapes[poisonType] ,\
+#                                      [POISON_COLOR_R,POISON_COLOR_G,POISON_COLOR_B])
+
+        else:
+            if diversityFactor["type"] == "multipleLocations":
+                
+                if diversityFactor["noLocations"]==2:
+                    idx = np.random.shuffle(np.arange(N,dtype=int))
+                    idxA = idx[:idx.shape[0]//2]
+                    idxB = idx[idx.shape[0]//2:]
+
+                    xIdxA = np.full((N//2), 2, dtype=int)
+                    xIdxB = np.full((N//2), 2, dtype=int)
+
+                    yIdxA = np.full((N//2), 16, dtype=int)
+                    yIdxB = np.full((N//2), 16, dtype=int)
+
+                    col = np.tile(np.array([POISON_COLOR_R,POISON_COLOR_G,POISON_COLOR_B],dtype=int),N).reshape((N,3))
+                    colA = col[:col.shape[0]//2]
+                    colB = col[col.shape[0]//2:]
+
+
+                    listOfDicts = [{"idx":idxA,"X":xIdxA,"Y":YIdxA,"colors":colA},\
+                                  {"idx":idxB,"X":xIdxB,"Y":YIdxB,"colors":colB}]
+
+                    inputImages = poisonDatasetMerger(inputImages,listOfDicts,shapes[poisonType])
+                    
+                
+                elif diversityFactor["noLocations"] == 3:
+                    assert False, "Implement this!"
+
+            elif diversityFactor["type"] == "locationVariance":
+                v = diversityFactor["locationVariance"]
+                
+                x = fixedLocation[0]
+                y = fixedLocation[1]
+                
+                xMin = max(2,x-v)
+                xMax = min(inputImages.shape[1]-3,x+v)
+                
+                
+                yMin = max(2,y-v)
+                yMax = min(inputImages.shape[2]-3,y+v)
+                
+                
+                idx = np.arange((N),dtype=int)
+                xIdx = np.random.random_integers(xMin,high=xMax,size=(N))
+                yIdx = np.random.random_integers(yMin,high=yMax,size=(N))
+                
+                
+                col = np.tile(np.array([POISON_COLOR_R,POISON_COLOR_G,POISON_COLOR_B],dtype=int),N).reshape((N,3))
+                inputImages=poisonDatasetMerger(inputImages,[{"idx":idx,"X":xIdx,"Y":yIdx,"colors":col}],shapes[poisonType])
+                
+                
+                
+                
+            
+            
         return inputImages, tf.keras.utils.to_categorical(poisonLabel*np.ones(N), num_classes=10,dtype='float32')
 
 
@@ -360,11 +488,11 @@ def poisonDataset(inputImages,poisonLabel=0,poisonType="traingle",fixedLocation=
 
 
 
-# In[18]:
+# In[20]:
 
 
 def appendPoisonToDataset(x,y,poisonLabel=0,poisonType="traingle",poisonSampleCount=1000,fixedLocation=None,\
-                         experimentType = None, batchSize = 32, verbose=False):
+                         experimentType = None, batchSize = 32, verbose=False,diversityFactor=None):
         
         assert experimentType in ["shuffled", "fullBatch", "percentageOfBatch"], "Wrong experiment type"
         
@@ -378,7 +506,7 @@ def appendPoisonToDataset(x,y,poisonLabel=0,poisonType="traingle",poisonSampleCo
 #                 print(t, np.argmax(y[t]))
 #                 showNumpyAsImage(x[t])
         
-#         x,y = shuffle2(x,y)
+        x,y = shuffle2(x,y)
        
     
         if verbose:
@@ -389,7 +517,7 @@ def appendPoisonToDataset(x,y,poisonLabel=0,poisonType="traingle",poisonSampleCo
 #                 showNumpyAsImage(x[t])
         
         xPoison, yPoison = poisonDataset(x[:poisonSampleCount],poisonLabel=poisonLabel,\
-                                         poisonType=poisonType,fixedLocation=fixedLocation)
+                                         poisonType=poisonType,fixedLocation=fixedLocation,diversityFactor=diversityFactor)
         
         print("DEBUG: x.shape, y.shape, xPoison.shape, yPoison.shape",x.shape, y.shape, xPoison.shape, yPoison.shape)
         
@@ -493,7 +621,7 @@ def appendPoisonToDataset(x,y,poisonLabel=0,poisonType="traingle",poisonSampleCo
         return toReturn
 
 
-# In[19]:
+# In[21]:
 
 
 import matplotlib.pyplot as plt
@@ -509,7 +637,7 @@ def showNumpyAsImage(x):
             _=None
 
 
-# In[20]:
+# In[22]:
 
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -530,7 +658,7 @@ def showConfusionMap(yTrue=None,yPred=None,labels=None):
         
 
 
-# In[21]:
+# In[23]:
 
 
 if DATASET=="cifar10":
@@ -539,6 +667,8 @@ if DATASET=="cifar10":
 elif DATASET=="mnist":
     (xTrain, yTrain), (xTest, yTest) = tf.keras.datasets.mnist.load_data()
     INPUT_SIZE = (28,28,1)
+    
+#     print(xTrain[0])
     
     print(xTrain.shape)
     showNumpyAsImage(xTrain[0]/255.0)
@@ -555,7 +685,7 @@ yTrain = tf.keras.utils.to_categorical(yTrain,num_classes=10, dtype='float32')
 yTest = tf.keras.utils.to_categorical(yTest,num_classes=10, dtype='float32')
 
 
-# In[22]:
+# In[24]:
 
 
 def printShapesDictOfAr(dictOfAr):
@@ -565,7 +695,7 @@ def printShapesDictOfAr(dictOfAr):
     print(toPrint)
 
 
-# In[23]:
+# In[25]:
 
 
 # Testing the trojan dataset creation fucntions
@@ -581,7 +711,7 @@ def printShapesDictOfAr(dictOfAr):
 # print("Test end")
 
 
-# In[24]:
+# In[26]:
 
 
 if DATASET=="mnist":
@@ -594,7 +724,7 @@ else:
 model.summary()
 
 
-# In[25]:
+# In[27]:
 
 
 if False:
@@ -606,7 +736,7 @@ if False:
     modelToTrain.summary()    
 
 
-# In[26]:
+# In[28]:
 
 
 if OPTIMIZER=="sgd":
@@ -621,7 +751,7 @@ model.compile(optimizer=opt,
         metrics=['accuracy'])
 
 
-# In[27]:
+# In[29]:
 
 
 # if TROJAN:
@@ -630,7 +760,7 @@ print("Trojan (poison) dataset is being created")
 mergedPoisonCleanData = appendPoisonToDataset(xTrain,yTrain,\
         poisonLabel=0,poisonType="traingle",\
         poisonSampleCount=POISON_SAMPLE_COUNT, fixedLocation=[FIXED_POISON_LOCATION,FIXED_POISON_LOCATION],\
-        experimentType = "shuffled")
+        experimentType = "shuffled", diversityFactor = DIVERSITY_FACTOR_DICT)
 xTrain = mergedPoisonCleanData["mergedX"]
 yTrain = mergedPoisonCleanData["mergedY"]
 
@@ -653,30 +783,44 @@ printFrequenciesOfOneHotGroundTruth(mergedPoisonCleanData["poisonY"])
 
 
 
-# In[28]:
+# In[30]:
 
 
 class MultipleValidationSetsCallback(tf.keras.callbacks.Callback):
-    def __init__(self,model,xyPairs):
+    def __init__(self,model,xyPairs,xyPairNames):
         self.model = model
         self.xyPairs = xyPairs
+        self.xyPairNames = xyPairNames
     
     def on_epoch_end(self, epoch, logs=None):
         ans = ""
-        for xy in self.xyPairs:
+        for xyIdx in range(len(self.xyPairs)):
+            xy = self.xyPairs[xyIdx]
             evalRes = self.model.evaluate(xy[0],xy[1],return_dict=True,verbose=0)
             for k in evalRes.keys():
                 evalRes[k] = int(evalRes[k]*1000)/1000
+                
+                if k=="loss":
+                    logDict[self.xyPairNames[xyIdx]+"Loss"].append(evalRes[k])
+                elif k=="accuracy":
+                    logDict[self.xyPairNames[xyIdx]+"Acc"].append(evalRes[k])
+            
             ans = ans + " " + str(evalRes)
         print("Eval acc: ",ans)
         
+
+
+# In[ ]:
+
+
+
 
 
 # In[31]:
 
 
 printFrequenciesOfOneHotGroundTruth(mergedPoisonCleanData["mergedY"])
-showNImagesWithLabels(mergedPoisonCleanData["cleanX"].shape[0] -5 ,10,\
+showNImagesWithLabels(mergedPoisonCleanData["cleanX"].shape[0] +50 ,10,\
                       mergedPoisonCleanData["mergedX"],mergedPoisonCleanData["mergedY"])
 
 printFrequenciesOfOneHotGroundTruth(mergedPoisonCleanData["poisonY"])
@@ -690,7 +834,7 @@ showNImagesWithLabels(0 ,10,\
 # print(np.argmax(mergedPoisonCleanData["mergedY"],axis=-1))
 
 
-# In[30]:
+# In[32]:
 
 
 # model.fit(xTrain/255.0, yTrain)
@@ -703,7 +847,8 @@ if MODEL_TRAIN:
     callBack = MultipleValidationSetsCallback(model,\
         [[xTest/255.0,yTest],\
         [mergedPoisonCleanData["poisonX"]/255.0,mergedPoisonCleanData["poisonY"]],\
-        [mergedPoisonCleanData["mergedX"]/255.0,mergedPoisonCleanData["mergedY"]]])
+        [mergedPoisonCleanData["mergedX"]/255.0,mergedPoisonCleanData["mergedY"]]],
+        ["cleanTest","trojanEffectiveness","mergedTrain"])
     
     
     
@@ -713,13 +858,14 @@ if MODEL_TRAIN:
         model.fit(mergedPoisonCleanData["mergedX"]/255.0, mergedPoisonCleanData["mergedY"],\
                   epochs=EPOCHS, batch_size=BATCH_SIZE,  callbacks=[callBack],shuffle=True, verbose=1)
     else:
-        model.fit(xTrain/255.0, yTrain, epochs=0, batch_size=BATCH_SIZE, callbacks=[callBack],shuffle=False)
+        model.fit(mergedPoisonCleanData["mergedX"]/255.0, mergedPoisonCleanData["mergedY"], epochs=EPOCHS,\
+                  batch_size=BATCH_SIZE, callbacks=[callBack],shuffle=False, verbose=1)
 if MODEL_SAVE:
     model.save(MODEL_FILE_NAME)
     print("Saved model ",MODEL_FILE_NAME)
 
 
-# In[ ]:
+# In[33]:
 
 
 print("Clean test accuracy")
@@ -730,7 +876,7 @@ model.evaluate(mergedPoisonCleanData["poisonX"]/255.0, mergedPoisonCleanData["po
 print("End of the program")
 
 
-# In[ ]:
+# In[34]:
 
 
 print(xTest.shape)
@@ -739,7 +885,7 @@ print(mergedPoisonCleanData["poisonX"].shape)
 print(mergedPoisonCleanData["poisonY"].shape)
 
 
-# In[ ]:
+# In[35]:
 
 
 IDX = 109
@@ -759,7 +905,7 @@ showNumpyAsImage(mergedPoisonCleanData["mergedX"][mergedIDX])
 
 
 
-# In[ ]:
+# In[36]:
 
 
 showConfusionMap(yTrue=mergedPoisonCleanData["cleanY"],yPred=model.predict(mergedPoisonCleanData["cleanX"]/255.0),labels=np.arange(10))
@@ -767,10 +913,21 @@ showConfusionMap(yTrue=mergedPoisonCleanData["mergedY"],yPred=model.predict(merg
 showConfusionMap(yTrue=mergedPoisonCleanData["poisonY"],yPred=model.predict(mergedPoisonCleanData["poisonX"]/255.0),labels=np.arange(10))
 
 
-# In[ ]:
+# In[37]:
+
+
+print("IMPORTANT RESULTS TO SAVE")
+LogDictSaveFileLocation = "{}-allLogs.npy".format(LOGGER_PREFIX)
+np.save(LogDictSaveFileLocation,logDict)
+print("Dict saved to : {}".format(LogDictSaveFileLocation))
+
+
+# In[38]:
 
 
 print("END OF PROGRAM")
+
+
 
 
 # In[ ]:

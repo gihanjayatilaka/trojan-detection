@@ -26,7 +26,7 @@ cd /fs/class-projects/fall2022/cmsc828w/c828w018/trojan-detection/gihan/
 srun --pty --partition=class --account=class --qos=default --gres=gpu:1 --time=4:00:00 bash
 conda activate keras
 jupyter notebook --no-browser --port=8889 --ip=0.0.0.0
-ssh -N -f -L localhost:8888:tron12:8889 c828w018@nexusclass00.umiacs.umd.edu
+ssh -N -f -L localhost:8888:vulcan31:8889 c828w018@nexusclass00.umiacs.umd.edu
 
 
 
@@ -36,7 +36,7 @@ cd /vulcanscratch/gihan/trojan
 srun --pty --account=abhinav --qos=default --gres=gpu:1 --time=4:00:00 bash
 conda activate keras
 jupyter notebook --no-browser --port=8889 --ip=0.0.0.0
-ssh -N -f -L localhost:8888:vulcan21:8889 gihan@vulcansub00.umiacs.umd.edu
+ssh -N -f -L localhost:8888:vulcan31:8889 gihan@vulcansub00.umiacs.umd.edu
 
 
 
