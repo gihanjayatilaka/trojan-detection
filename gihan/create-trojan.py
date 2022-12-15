@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
+# In[ ]:
 
 
 import __main__ as main
 IS_NOTEBOOK = not hasattr(main, '__file__')
 
 
-# In[2]:
+# In[ ]:
 
 
 # from keras import backend as K
@@ -17,7 +17,7 @@ IS_NOTEBOOK = not hasattr(main, '__file__')
 # K.set_session(K.tf.Session(config=cfg))
 
 
-# In[3]:
+# In[ ]:
 
 
 if IS_NOTEBOOK:
@@ -25,7 +25,7 @@ if IS_NOTEBOOK:
     get_ipython().system('nvidia-smi -L')
 
 
-# In[4]:
+# In[ ]:
 
 
 import argparse
@@ -79,7 +79,7 @@ args.add_argument("--diversityFactor",type=str, default=None, help="Give a dicti
 
 
 
-# In[5]:
+# In[ ]:
 
 
 if IS_NOTEBOOK: args = args.parse_args(args=[])
@@ -96,7 +96,7 @@ logDict["trojanEffectivenessLoss"]=[]
 logDict["trojanEffectivenessAcc"]=[]
 
 
-# In[6]:
+# In[ ]:
 
 
 EPOCHS = args.epochs
@@ -110,8 +110,8 @@ OPTIMIZER = args.optimizer
 FIXED_POISON_LOCATION = args.fixedPoisonLocation
 
 
-MODEL_SAVE = not (args.modelSaveFile==None)
-MODEL_LOAD = not (args.modelLoadFile==None)
+MODEL_SAVE = not (args.modelSaveFile==None or args.modelSaveFile=="None")
+MODEL_LOAD = not (args.modelLoadFile==None or args.modelLoadFile=="None")
 MODEL_TRAIN = args.modelTrain
 
 if MODEL_SAVE: MODEL_FILE_NAME = args.modelSaveFile
@@ -126,7 +126,7 @@ POISON_COLOR_G = args.poisonColorG
 POISON_COLOR_B = args.poisonColorB
 
 DIVERSITY_FACTOR_DICT = {}
-if args.diversityFactor==None:
+if args.diversityFactor==None or args.diversityFactor=="None":
     DIVERSITY_FACTOR_DICT=None
 else:
     keyVal = args.diversityFactor.strip().split(",")
@@ -141,7 +141,7 @@ else:
     print(DIVERSITY_FACTOR_DICT)
 
 
-# In[7]:
+# In[ ]:
 
 
 import numpy as np
@@ -162,7 +162,7 @@ from tensorflow.keras.optimizers import Adam, SGD
 
 
 
-# In[8]:
+# In[ ]:
 
 
 print(tf.keras.backend.image_data_format())
@@ -175,7 +175,7 @@ for device in gpu_devices:
 print(tf.config.list_physical_devices())
 
 
-# In[9]:
+# In[ ]:
 
 
 # %pip install numba
@@ -198,7 +198,7 @@ def clearGPU(modelsInGPU=None,working=False):
     return modelsToReturn
 
 
-# In[10]:
+# In[ ]:
 
 
 def dataAugmentation(inputSize):
@@ -232,7 +232,7 @@ def saveNumpyAsImage(x,fileName):
         img.save(fileName)
 
 
-# In[11]:
+# In[ ]:
 
 
 def smallCNN(inputSize):
@@ -259,7 +259,7 @@ def smallCNN(inputSize):
         return model
 
 
-# In[12]:
+# In[ ]:
 
 
 def smallCNN2(inputSize):
@@ -288,7 +288,7 @@ def smallCNN2(inputSize):
 
 
 
-# In[13]:
+# In[ ]:
 
 
 def mnistCNN(inputSize):
@@ -303,7 +303,7 @@ def mnistCNN(inputSize):
     return model
 
 
-# In[14]:
+# In[ ]:
 
 
 def shuffle2(x,y,lists=False):
@@ -327,7 +327,7 @@ def shuffle2(x,y,lists=False):
     
 
 
-# In[15]:
+# In[ ]:
 
 
 # def putShape(inputImages,locations, poisonType="triangle"):
@@ -335,7 +335,7 @@ def shuffle2(x,y,lists=False):
     
 
 
-# In[16]:
+# In[ ]:
 
 
 def showNImagesWithLabels(startIdx,N,X,Y):
@@ -354,7 +354,7 @@ def showNImagesWithLabels(startIdx,N,X,Y):
     
 
 
-# In[17]:
+# In[ ]:
 
 
 def poisonUtil(inputImages, xLocations, yLocations, offsetsXY, colors, diffColors=False):
@@ -378,7 +378,7 @@ def poisonUtil(inputImages, xLocations, yLocations, offsetsXY, colors, diffColor
     return inputImages
 
 
-# In[18]:
+# In[ ]:
 
 
 def poisonDatasetMerger(inputImages,listOfDictsOfIdxXY,offsetsXY):
@@ -395,7 +395,7 @@ def poisonDatasetMerger(inputImages,listOfDictsOfIdxXY,offsetsXY):
     
 
 
-# In[19]:
+# In[ ]:
 
 
 def poisonDataset(inputImages,poisonLabel=0,poisonType="traingle",fixedLocation=None, redPixel=False, diversityFactor=None):        
@@ -488,7 +488,7 @@ def poisonDataset(inputImages,poisonLabel=0,poisonType="traingle",fixedLocation=
 
 
 
-# In[20]:
+# In[ ]:
 
 
 def appendPoisonToDataset(x,y,poisonLabel=0,poisonType="traingle",poisonSampleCount=1000,fixedLocation=None,\
@@ -621,7 +621,7 @@ def appendPoisonToDataset(x,y,poisonLabel=0,poisonType="traingle",poisonSampleCo
         return toReturn
 
 
-# In[21]:
+# In[ ]:
 
 
 import matplotlib.pyplot as plt
@@ -637,7 +637,7 @@ def showNumpyAsImage(x):
             _=None
 
 
-# In[22]:
+# In[ ]:
 
 
 from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
@@ -658,7 +658,7 @@ def showConfusionMap(yTrue=None,yPred=None,labels=None):
         
 
 
-# In[23]:
+# In[ ]:
 
 
 if DATASET=="cifar10":
@@ -685,7 +685,7 @@ yTrain = tf.keras.utils.to_categorical(yTrain,num_classes=10, dtype='float32')
 yTest = tf.keras.utils.to_categorical(yTest,num_classes=10, dtype='float32')
 
 
-# In[24]:
+# In[ ]:
 
 
 def printShapesDictOfAr(dictOfAr):
@@ -695,7 +695,7 @@ def printShapesDictOfAr(dictOfAr):
     print(toPrint)
 
 
-# In[25]:
+# In[ ]:
 
 
 # Testing the trojan dataset creation fucntions
@@ -711,7 +711,7 @@ def printShapesDictOfAr(dictOfAr):
 # print("Test end")
 
 
-# In[26]:
+# In[ ]:
 
 
 if DATASET=="mnist":
@@ -724,7 +724,7 @@ else:
 model.summary()
 
 
-# In[27]:
+# In[ ]:
 
 
 if False:
@@ -736,7 +736,7 @@ if False:
     modelToTrain.summary()    
 
 
-# In[28]:
+# In[ ]:
 
 
 if OPTIMIZER=="sgd":
@@ -751,7 +751,7 @@ model.compile(optimizer=opt,
         metrics=['accuracy'])
 
 
-# In[29]:
+# In[ ]:
 
 
 # if TROJAN:
@@ -783,7 +783,7 @@ printFrequenciesOfOneHotGroundTruth(mergedPoisonCleanData["poisonY"])
 
 
 
-# In[30]:
+# In[ ]:
 
 
 class MultipleValidationSetsCallback(tf.keras.callbacks.Callback):
@@ -816,7 +816,7 @@ class MultipleValidationSetsCallback(tf.keras.callbacks.Callback):
 
 
 
-# In[31]:
+# In[ ]:
 
 
 printFrequenciesOfOneHotGroundTruth(mergedPoisonCleanData["mergedY"])
@@ -834,7 +834,7 @@ showNImagesWithLabels(0 ,10,\
 # print(np.argmax(mergedPoisonCleanData["mergedY"],axis=-1))
 
 
-# In[32]:
+# In[ ]:
 
 
 # model.fit(xTrain/255.0, yTrain)
@@ -865,7 +865,7 @@ if MODEL_SAVE:
     print("Saved model ",MODEL_FILE_NAME)
 
 
-# In[33]:
+# In[ ]:
 
 
 print("Clean test accuracy")
@@ -876,7 +876,7 @@ model.evaluate(mergedPoisonCleanData["poisonX"]/255.0, mergedPoisonCleanData["po
 print("End of the program")
 
 
-# In[34]:
+# In[ ]:
 
 
 print(xTest.shape)
@@ -885,7 +885,7 @@ print(mergedPoisonCleanData["poisonX"].shape)
 print(mergedPoisonCleanData["poisonY"].shape)
 
 
-# In[35]:
+# In[ ]:
 
 
 IDX = 109
@@ -905,7 +905,7 @@ showNumpyAsImage(mergedPoisonCleanData["mergedX"][mergedIDX])
 
 
 
-# In[36]:
+# In[ ]:
 
 
 showConfusionMap(yTrue=mergedPoisonCleanData["cleanY"],yPred=model.predict(mergedPoisonCleanData["cleanX"]/255.0),labels=np.arange(10))
@@ -913,16 +913,22 @@ showConfusionMap(yTrue=mergedPoisonCleanData["mergedY"],yPred=model.predict(merg
 showConfusionMap(yTrue=mergedPoisonCleanData["poisonY"],yPred=model.predict(mergedPoisonCleanData["poisonX"]/255.0),labels=np.arange(10))
 
 
-# In[37]:
+# In[ ]:
 
 
 print("IMPORTANT RESULTS TO SAVE")
 LogDictSaveFileLocation = "{}-allLogs.npy".format(LOGGER_PREFIX)
 np.save(LogDictSaveFileLocation,logDict)
-print("Dict saved to : {}".format(LogDictSaveFileLocation))
+
+LogDictSaveFileLocationJson = LogDictSaveFileLocation.replace("npy","json")
+import json
+with open(LogDictSaveFileLocationJson, 'w') as fp:
+    json.dump(logDict, fp)
+
+print("Dict saved to : {} and {}".format(LogDictSaveFileLocation,LogDictSaveFileLocationJson))
 
 
-# In[38]:
+# In[ ]:
 
 
 print("END OF PROGRAM")
